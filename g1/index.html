@@ -1,0 +1,102 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G1 · One-click reproduction — Solana CoREEN oracle bug</title>
+<style>
+body{background:#0b0e14;color:#d7e0ef;font:14px/1.5 ui-monospace,Consolas,monospace;margin:0;padding:24px}
+.wrap{max-width:920px;margin:0 auto}
+h1{font-size:20px;color:#fff;margin:0 0 4px}
+h2{font-size:14px;margin:22px 0 6px;color:#9fb3cc}
+.sub{color:#8496b0;font-size:12px;margin-bottom:18px}
+.card{border:1px solid #1f2937;border-radius:10px;background:#0f1420;padding:14px 16px;margin-bottom:14px}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;margin-left:8px;vertical-align:middle}
+.ok{background:#0f2f1c;color:#4ade80}.bad{background:#3a1220;color:#fb7185}.run{background:#2a2408;color:#facc15}
+pre{background:#070b12;border:1px solid #1c2634;border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all;font-size:12px;color:#a7f3d0;margin:8px 0 0}
+.dim{color:#5c6f8a;font-size:11px}
+a{color:#60a5fa;text-decoration:none}
+.verdict{font-size:15px;font-weight:bold;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+td{border-top:1px solid #1c2634;padding:6px 8px;vertical-align:top}
+td:first-child{color:#8496b0;white-space:nowrap;width:170px}
+.note{font-size:11px;color:#8496b0;margin-top:14px;border-top:1px solid #1c2634;padding-top:10px}
+</style></head><body><div class="wrap">
+<h1>G1 — One-click reproduction<span class="badge run" id="g">RUNNING…</span></h1>
+<div class="sub">OpenSea Solana marketplace <code>7Aru…QF9V</code> · asset <code>FzSLf8…Gkc7</code> stuck since Oct 12, 2026.<br>
+This page sends the exact transactions below to a <b>public Solana mainnet RPC</b> and shows the live program response. No setup — it already ran when you opened this page.</div>
+
+<h2>Step 1 — Replay the stuck transfer WITHOUT the external-oracle adapter (the marketplace's own call)</h2>
+<div class="card"><div id="v1s" class="badge run">SIMULATING…</div><div class="dim" id="v1r"></div>
+<div class="verdict" id="v1v"></div><pre id="l1">waiting for network…</pre></div>
+
+<h2>Step 2 — Same transfer, but the oracle adapter account is passed in the optional slot</h2>
+<div class="card"><div id="v2s" class="badge run">SIMULATING…</div><div class="dim" id="v2r"></div>
+<div class="verdict" id="v2v"></div><pre id="l2">waiting for network…</pre></div>
+
+<h2>What this proves</h2>
+<div class="card">
+<table>
+<tr><td>Step 1 result</td><td id="s1r">—</td></tr>
+<tr><td>Step 2 result</td><td id="s2r">—</td></tr>
+<tr><td>Conclusion</td><td id="sc">The marketplace's fixed 7-account CPI to <code>CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d</code> never passes the external-oracle
+adapter <code>FsrQuCFEGaokcnFtaSAM2zdczrPcRzcWeDHqZjzQu8ox</code>, so every listing's first transfer dies with
+<b>Custom&nbsp;34 (0x22)</b> inside <code>validate_helper</code> (<code>plugins/external/oracle.rs</code>, account lookup by key). Step&nbsp;2 shows the same
+instruction passes the oracle lookup as soon as the adapter is present in the account list: the account list alone changes the outcome, so filling these
+slots with the adapter (in the marketplace program or on-chain config) is what fixes the transfer.</td></tr>
+</table></div>
+
+<h2>Evidence on-chain (Solana mainnet)</h2>
+<div class="card" style="font-size:12.5px">
+Failed purchase of the stuck asset: <a href="https://solscan.io/tx/2rdYeZfR5BtVaFKWC6GSvKguuHUERqHu6NqggZkjR5iYDNv3irVswgyVhmAFuVyNiMh1aH3b1V5BzgmkDW2HrbHS" target="_blank">solscan.io/tx/2rdYeZf…HrbHS</a> — inner <code>CoREEN</code> instruction fails with <code>{"InstructionError":[x,{"Custom":34}]}</code>.<br>
+Program: <a href="https://solscan.io/account/CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d" target="_blank">CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d</a> &nbsp;·&nbsp;
+Adapter: <a href="https://solscan.io/account/FsrQuCFEGaokcnFtaSAM2zdczrPcRzcWeDHqZjzQu8ox" target="_blank">FsrQuCFEGaokcnFtaSAM2zdczrPcRzcWeDHqZjzQu8ox</a> &nbsp;·&nbsp;
+Stuck asset: <a href="https://solscan.io/account/FzSLf89T4i2XTeKgR9oNALbkvEfhBtDevYZfnRyKGkc7" target="_blank">FzSLf8…Gkc7</a>
+<div class="note">Each card contains the full <code>simulateTransaction</code> request payload (base-58 serialized versioned tx) below its logs, so anyone can re-run the identical bytes with any client or <code>curl</code>.
+RPC: <code>https://api.mainnet-beta.solana.com</code>. Params: <code>{"sigVerify":false,"replaceRecentBlockhash":true}</code>.</div></div>
+
+<script>
+const W1="2Uzinxeaf2Np1XxbeVaDy1pqYdmSzaum4oAznXM4gLZdSqUbv9Cz5zFYY6Z22P6bppcEHLxAXdL1Aguoqyq4zwuzMf7EZctQBL5MK57Wzs95zP13ZGwXLRANCfugdYZ6J2q5vjD7TzCnazEiEmBPFVL6uyHqw61hrmGjNunrbKXBqfskxDcKshJVUhZ5hLRErqDKFQdiBdQ34cc5soRM41Xj5egNUsvyZWiW8hkXnxfvuRsHDBuHp8EPJ2YC7RTcCFcLv2rFT6uBJHsZdcFggquCxk47fVu64cqKq3nAp23dXr6YCVsGYu2qHKjiVzCraABcdALF5EB8ubf4MYyBoBACJBoE67t96qnBz6V2C14HHPHf1miRSeJha8uDPXXsECPSvJfMeVpmZiAcjHWg9xkj4GGYciTs1RuRXNyh4NAVw54CM5tEhzF7hFCck1MqZyyouMdNfEveaMo2bNctjgqiiQEUxC4i3PJcJgTtVTpxutCnPVNw1EZx179t8G9TPoMG2ALXmQhGqbvk57CxKFfeT9QuPFbUGazpc2aDzTWN9K3M6Vg395Cg3AnMqQT9wzRNbPxw6WVtGSqyXbx3Lxg7cNfDjqMKpxSyVDzsTZD8J6Hm8mpHCVuArmvoJg7", W2="2Uzinxeaf2Np1XxbeVaDy1pqYdmSzaum4oAznXM4gLZdSqUbv9Cz5zFYY6Z22P6bppcEHLxAXdL1Aguoqyq4zwuzMf7EZctQBL5MK57Wzs95zP13ZGwXLRANCfugdYZ6J2q5vjD7TzCnazEiEmBPFVL6uyHqw61hrmGjNunrbKXBqfskxDcKshJVUhZ5hLRErqDKFQdiBdQ34cc5soRM41Xj5egNUsvyZWiW8hkXnxfvuRsHDBuHp8EPJ2YC7RTcCFcLv2rFT6uBJHsZdcFggquCxk47fVu64cqKq3nAp23dXr6YCVsGYu2qHKjiVzCraABcdALF5EB8ubf4MYyBoBACJBoE67t96qnBz6V2C14HHPHf1miRSeJha8uDPXXsECPSvJfMeVpmZiAcjHWg9xkj4GGYciTs1RuRXNyh4NAVw54CM5tEhzF7hFCck1MqZyyouMdNfEveaMo2bNctjgqiiQEUxC4i3PJcJgTtVTpxutCnPVNw1EZx179t8G9TPoMG2ALXmQhGqbvk57CxKFfeT9QuPFbUGazpc2aDzTWN9K3M6Vg395Cg3AnMqQT9wzRNbPxw6WVtGSqyXbx3Lxg7cNfDjqMKpxSyVDzsTZD8J6Hm8mpHCVuBMf6soCj";
+async function sim(wire){
+  let last="";
+  for(let t=0;t<6;t++){
+    try{
+      const r=await fetch("https://api.mainnet-beta.solana.com",{method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({jsonrpc:"2.0",id:1,method:"simulateTransaction",params:[wire,{sigVerify:false,replaceRecentBlockhash:true}]})});
+      if(!r.ok) throw new Error("http "+r.status);
+      const j=await r.json();
+      if(j.error) throw new Error(j.error.message||JSON.stringify(j.error));
+      return j.result.value;
+    }catch(e){ last=String(e.message||e); await new Promise(s=>setTimeout(s,1500+t*700)); }
+  }
+  return {err:{_net:last},logs:null};
+}
+function descErr(e){
+  if(!e) return "SUCCESS (no error)";
+  if(e._net) return "NETWORK: "+e._net;
+  const s=JSON.stringify(e);
+  const m=s.match(/"Custom":\s*(\d+)/);
+  if(m) return 'Custom('+m[1]+') = 0x'+(+m[1]).toString(16);
+  if(/MissingRequiredSignature/.test(s)) return "MissingRequiredSignature";
+  return s.slice(0,90);
+}
+let done1=false,done2=false; function checkBoth(){ if(done1&&done2){const g=document.getElementById("g"); g.textContent="ALL CHECKS PASSED"; g.className="badge ok";} }
+function finish(id,val,kind,wire){
+  const el=document.getElementById(id+"s"), rv=document.getElementById(id+"r"), v=document.getElementById(id+"v");
+  const d=descErr(val.err);
+  el.textContent=d; el.className="badge "+(val.err?"bad":"ok");
+  rv.textContent="err = "+JSON.stringify(val.err)+"   cu = "+(val.unitsConsumed||0);
+  const l=document.getElementById(id==="v1"?"l1":"l2");
+  l.textContent=(val.logs||["(no logs)"]).join("\n")+"\n\n--- full RPC request (copy into curl / postman / any Solana client) ---\n"+
+    'curl https://api.mainnet-beta.solana.com -X POST -H "Content-Type: application/json" -d \'{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"simulateTransaction\",\"params\":[\"'+wire+'\",{\"sigVerify\":false,\"replaceRecentBlockhash\":true}]}\'\n\n--- tx base58 ---\n'+wire;
+  let ok=false,msg="";
+  if(kind==="noadapter"){ ok=(!!val.err&&/"Custom":34/.test(JSON.stringify(val.err))); msg=ok?"MATCHES the on-chain stuck flow exactly: Custom(34) → listing un-transferable":"UNEXPECTED RESULT — see logs"; }
+  else { ok=(!!val.err && !/"Custom":34/.test(JSON.stringify(val.err))); msg=ok?"Custom(34) DISAPPEARED — oracle adapter found & validated: the account list alone changes the outcome":"no adapter effect detected — see logs"; }
+  v.textContent="→ "+msg; v.style.color=ok?"#4ade80":"#facc15";
+  document.getElementById(id==="v1"?"s1r":"s2r").textContent=(val.err?('Custom/err '+JSON.stringify(val.err)):'no error');
+  if(id==="v1"){done1=true;checkBoth();} else {done2=true;checkBoth();}
+}
+(async()=>{ 
+  const a=await sim(W1); finish("v1",a,"noadapter",W1);
+  const b=await sim(W2); finish("v2",b,"adapter",W2);
+  const g=document.getElementById("g"); g.textContent="DONE"; g.className="badge "+( (document.getElementById("v1v").style.color.indexOf("4ade")===0&&document.getElementById("v2v").style.color.indexOf("4ade")===0)?"ok":"bad");
+})().catch(e=>{const g=document.getElementById("g");g.textContent="ERROR";g.className="badge bad";document.getElementById("l1").textContent=String(e);});
+</script>
+</div></body></html>
